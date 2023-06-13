@@ -3,26 +3,32 @@
 # 4B2-WR
 
 # Userrights for Folders
-$base=C:\Abteilungen
-$abteilung=GF
+$base="C:\Abteilungen"
+$abteilungen = @(
+"GF",
+"Sales",
+"Marketing",
+"Service"
+)
 
-$ouPath = "OU=$abateilung,DC=4B2-T3,DC=local"
-$folderPath = "$base\$abteilung"
+$Company="BattServ"
 
-# Get the distinguished name (DN) of the OU
-$ou = Get-ADOrganizationalUnit -Filter "DistinguishedName -eq '$ouPath'"
+ForEach ($abteilung In $abteilungen) {
 
-if ($ou) {
-    $ouDN = $ou.DistinguishedName
-    # Get the security identifier (SID) of the OU
-    $ouSID = (Get-ADObject -Identity $ouDN).SID
-    # Set the folder permissions
-    $acl = Get-Acl -Path $folderPath
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($ouSID, "Write", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $acl.AddAccessRule($rule)
-    Set-Acl -Path $folderPath -AclObject $acl
-
-    Write-Host "Access granted to OU: $ouPath"
-} else {
+    # Get the distinguished name (DN) of the OU
+    $ou = Get-ADOrganizationalUnit -Filter "DistinguishedName -eq '$ouPath'"
+    $ouPath = "OU=$abteilung,OU=$Company,DC=4B2-T3,DC=local"
+    $folderPath = "$base\$abteilung"
+    if ($ou) {
+        $ouDN = $ou.DistinguishedName
+        $ouSID= New-Object System.Security.Principal.SecurityIdentifier (Get-ADGroup $abteilung).SID
+        $acl = Get-Acl -Path "AD:\$ouDN"
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($ouSID, "Write", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $acl.AddAccessRule($rule)
+        Set-Acl -Path $folderPath -AclObject $acl
+        
+        Write-Host "Access granted to OU: $ouPath"
+    } else {
     Write-Host "OU not found: $ouPath"
+    }
 }
