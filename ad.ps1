@@ -2,58 +2,75 @@
 Import-Module ActiveDirectory
 
 # Set the containers name
-$Country="AT"
-$City = "VI"
-$CityFull="Vienna"
+$Cshort = "BS"
+$Company="BattServ"
 
 $DomainDN=(Get-ADDomain).DistinguishedName
-$ParentOU= "OU=BattServ"
+$ParentOU= "DC=4B2-T3,DC=local"
+
 $OUs = @(
-"Admins",
-"Computers",
 "GF",
 "Sales",
 "Marketing",
-"Service",
+"Service"
+)
+
+$SOUs= @(
+"Users",
+"Admins",
+"Computers",
 "Servers"
 )
 
+$base="C:\Abteilungen"
 
 # Create an OU for a new branch office
-$newOU=New-ADOrganizationalUnit -Name $CityFull -path $ParentOU –Description “A container for $CityFull users”  -PassThru
+$newOU=New-ADOrganizationalUnit -Name $Company -path $ParentOU –Description “A container for $Company users”  -PassThru
 ForEach ($OU In $OUs) {
     New-ADOrganizationalUnit -Name $OU -Path $newOU
-
-    $ouDN = $OU.DistinguishedName
-    # Get the security identifier (SID) of the OU
-    $ouSID = (Get-ADObject -Identity $ouDN).SID
-    # Set the folder permissions
-    $acl = Get-Acl -Path $folderPath
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($ouSID, "Write", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $acl.AddAccessRule($rule)
-    Set-Acl -Path $folderPath -AclObject $acl
-
-
+    #Admin Group
+    New-ADGroup "$OU Admins" -path ("OU=$OU,OU="+$Company+","+$ParentOU) -GroupScope Global -PassThru –Verbose
+    #User Group
+    New-ADGroup "$OU Users" -path ("OU=$OU,OU="+$Company+","+$ParentOU) -GroupScope Global -PassThru –Verbose
+    #Admin rights
+    $acl=Get-Acl "$base\$OU"
+    $rule=New-Object System.Security.AccessControl.FileSystemAccessRule("$OU Admins","FullControl",1,0,"Allow")
+    $acl.SetAccessRule($rule)
+    #User rights
+    $acl | Set-Acl "$base\$OU"
+    $rule=New-Object System.Security.AccessControl.FileSystemAccessRule("$OU Users","Write",1,0,"Allow")
+    $acl.SetAccessRule($rule)
+    $acl | Set-Acl "$base\$OU"
 }
 
-#Create administrative groups
-$adm_grp=New-ADGroup ($City+ "_admins") -path ("OU=Admins,OU="+$CityFull+","+$ParentOU) -GroupScope Global -PassThru –Verbose
-$adm_wks=New-ADGroup ($City+ "_account_managers") -path ("OU=Admins,OU="+$CityFull+","+$ParentOU) -GroupScope Global -PassThru –Verbose
-$adm_account=New-ADGroup ($City+ "_wks_admins") -path ("OU=Admins,OU="+$CityFull+","+$ParentOU) -GroupScope Global -PassThru –Verbose
+#Global OUs
+ForEach ($SOU In $SOUs) {
+    New-ADOrganizationalUnit -Name $SOU -Path $newOU
+}
 
 
-Set-ADOrganizationalUnit -Identity "OU=4B2-T3Users,DC=4B2-T3,DC=local" -Description "All Users"
-Set-ADOrganizationalUnit -Identity "OU=GF,DC=4B2-T3,DC=local" -Description "GF Users"
-Set-ADOrganizationalUnit -Identity "OU=Marketing,DC=4B2-T3,DC=local" -Description "Marketing Users"
-Set-ADOrganizationalUnit -Identity "OU=Sales,DC=4B2-T3,DC=local" -Description "Sales Users"
-Set-ADOrganizationalUnit -Identity "OU=Service,DC=4B2-T3,DC=local" -Description "Service Users"
+#Create administrative groups   
+New-ADGroup "$Cshort admins" -path ("OU=Admins,OU="+$Company+","+$ParentOU) -GroupScope Global -PassThru –Verbose
+New-ADGroup "$Cshort account_managers" -path ("OU=Admins,OU="+$Company+","+$ParentOU) -GroupScope Global -PassThru –Verbose
+New-ADGroup "$Cshort wks_admins" -path ("OU=Admins,OU="+$Company+","+$ParentOU) -GroupScope Global -PassThru –Verbose
+
+#Admin rights
+$acl=Get-Acl "$base"
+$rule=New-Object System.Security.AccessControl.FileSystemAccessRule("BS admins","FullControl",1,0,"Allow")
+$acl.SetAccessRule($rule)
+
+#Set-ADOrganizationalUnit -Identity "OU=4B2-T3Users,DC=4B2-T3,DC=local" -Description "All Users"
+#Set-ADOrganizationalUnit -Identity "OU=GF,DC=4B2-T3,DC=local" -Description "GF Users"
+#Set-ADOrganizationalUnit -Identity "OU=Marketing,DC=4B2-T3,DC=local" -Description "Marketing Users"
+#Set-ADOrganizationalUnit -Identity "OU=Sales,DC=4B2-T3,DC=local" -Description "Sales Users"
+#Set-ADOrganizationalUnit -Identity "OU=Service,DC=4B2-T3,DC=local" -Description "Service Users"
 
 
 ##### An example of assigning password reset permissions for the _account_managers group on the Users OU
 $confADRight = "ExtendedRight"
 $confDelegatedObjectType = "bf967aba-0de6-11d0-a285-00aa003049e2" # User Object Type GUID
 $confExtendedRight = "00299570-246d-11d0-a768-00aa006e0529" # Extended Right PasswordReset GUID
-$acl=get-acl ("AD:OU=Users,OU="+$CityFull+","+$ParentOU)
+$acl=get-acl ("AD:OU=Users,OU="+$Company+","+$ParentOU)
 $adm_accountSID = [System.Security.Principal.SecurityIdentifier]$adm_account.SID
 #Build an Access Control Entry (ACE)string
 $aceIdentity = [System.Security.Principal.IdentityReference] $adm_accountSID
@@ -63,4 +80,4 @@ $aceInheritanceType = [System.DirectoryServices.ActiveDirectorySecurityInheritan
 $ace = New-Object System.DirectoryServices.ActiveDirectoryAccessRule($aceIdentity, $aceADRight, $aceType, $confExtendedRight, $aceInheritanceType,$confDelegatedObjectType)
 # Apply ACL
 $acl.AddAccessRule($ace)
-Set-Acl -Path ("AD:OU=Users,OU="+$CityFull+","+$ParentOU) -AclObject $acl
+Set-Acl -Path ("AD:OU=Users,OU="+$Company+","+$ParentOU) -AclObject $acl
