@@ -4,7 +4,7 @@
 
 # Create all Folders for DC01
 # Create Folders for Departments
-$base=C:\Abteilungen
+$base="C:\Abteilungen"
 mkdir $base
 mkdir $base\GF
 mkdir $base\Sales
