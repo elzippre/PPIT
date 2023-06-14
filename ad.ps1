@@ -1,4 +1,4 @@
-#AD Rollout
+﻿#AD Rollout
 Import-Module ActiveDirectory
 
 # Set the containers name
@@ -34,13 +34,13 @@ ForEach ($OU In $OUs) {
     New-ADGroup "$OU Users" -path ("OU=$OU,OU="+$Company+","+$ParentOU) -GroupScope Global -PassThru –Verbose
     #Admin rights
     $acl=Get-Acl "$base\$OU"
-    $rule=New-Object System.Security.AccessControl.FileSystemAccessRule("$OU Admins","FullControl",1,0,"Allow")
+    $rule=New-Object System.Security.AccessControl.FileSystemAccessRule("$OU Admins","FullControl","ContainerInherit,ObjectInherit","None","Allow")
     $acl.SetAccessRule($rule)
     #User rights
-    $acl | Set-Acl "$base\$OU"
-    $rule=New-Object System.Security.AccessControl.FileSystemAccessRule("$OU Users","Write",1,0,"Allow")
+    Set-Acl "$base\$OU" $acl
+    $rule=New-Object System.Security.AccessControl.FileSystemAccessRule("$OU Users","Write","ContainerInherit,ObjectInherit","None","Allow")
     $acl.SetAccessRule($rule)
-    $acl | Set-Acl "$base\$OU"
+    Set-Acl "$base\$OU" $acl
 }
 
 #Global OUs
