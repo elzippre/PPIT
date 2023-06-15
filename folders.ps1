@@ -1,4 +1,4 @@
-﻿# Folders Rollout
+﻿# Folders Rollout Create Folders for Departments and User Home
 # 4B2-T3.local
 # 4B2-WR
 
