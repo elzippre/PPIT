@@ -1,13 +1,19 @@
-﻿#AD Rollout
+#AD Rollout der OUs und Gruppen
 Import-Module ActiveDirectory
 
-# Set the containers name
+#
+#EINGABEN
+#
+
+# Name und Kürzel der Firma
 $Cshort = "BS"
 $Company="BattServ"
 
 $DomainDN=(Get-ADDomain).DistinguishedName
+# Domain Name
 $ParentOU= "DC=4B2-T3,DC=local"
 
+# OUs/Abteilungen excl. IT Admins
 $OUs = @(
 "GF",
 "Sales",
@@ -15,6 +21,7 @@ $OUs = @(
 "Service"
 )
 
+#Sub OUs
 $SOUs= @(
 "Users",
 "Admins",
@@ -22,10 +29,16 @@ $SOUs= @(
 "Servers"
 )
 
+# Root Dir der Abteilungen
 $base="C:\Abteilungen"
+#
+#ENDE DER EINGABEN
+#
 
-# Create an OU for a new branch office
+# Create OU for Company
 $newOU=New-ADOrganizationalUnit -Name $Company -path $ParentOU –Description “A container for $Company users”  -PassThru
+
+# Create OUs for Departments
 ForEach ($OU In $OUs) {
     New-ADOrganizationalUnit -Name $OU -Path $newOU
     #Admin Group
@@ -48,7 +61,6 @@ ForEach ($SOU In $SOUs) {
     New-ADOrganizationalUnit -Name $SOU -Path $newOU
 }
 
-
 #Create administrative groups   
 New-ADGroup "$Cshort admins" -path ("OU=Admins,OU="+$Company+","+$ParentOU) -GroupScope Global -PassThru –Verbose
 New-ADGroup "$Cshort account_managers" -path ("OU=Admins,OU="+$Company+","+$ParentOU) -GroupScope Global -PassThru –Verbose
@@ -59,7 +71,6 @@ $acl=Get-Acl "$base"
 $rule=New-Object System.Security.AccessControl.FileSystemAccessRule("BS admins","FullControl",1,0,"Allow")
 $acl.SetAccessRule($rule)
 
-#Set-ADOrganizationalUnit -Identity "OU=4B2-T3Users,DC=4B2-T3,DC=local" -Description "All Users"
 #Set-ADOrganizationalUnit -Identity "OU=GF,DC=4B2-T3,DC=local" -Description "GF Users"
 #Set-ADOrganizationalUnit -Identity "OU=Marketing,DC=4B2-T3,DC=local" -Description "Marketing Users"
 #Set-ADOrganizationalUnit -Identity "OU=Sales,DC=4B2-T3,DC=local" -Description "Sales Users"
@@ -72,6 +83,7 @@ $confDelegatedObjectType = "bf967aba-0de6-11d0-a285-00aa003049e2" # User Object 
 $confExtendedRight = "00299570-246d-11d0-a768-00aa006e0529" # Extended Right PasswordReset GUID
 $acl=get-acl ("AD:OU=Users,OU="+$Company+","+$ParentOU)
 $adm_accountSID = [System.Security.Principal.SecurityIdentifier]$adm_account.SID
+
 #Build an Access Control Entry (ACE)string
 $aceIdentity = [System.Security.Principal.IdentityReference] $adm_accountSID
 $aceADRight = [System.DirectoryServices.ActiveDirectoryRights] $confADRight
